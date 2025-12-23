@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0">
+    <title>田口法 L9 現場診斷工具</title>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --card: #ffffff; --accent: #e67e22; --success: #2e7d32; }
+        body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 10px; color: #333; }
+        .container { max-width: 900px; margin: auto; background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.5rem; text-align: center; color: var(--primary); border-bottom: 3px solid var(--primary); padding-bottom: 10px; margin-bottom: 25px; }
+        h2 { font-size: 1.1rem; color: #444; border-left: 5px solid var(--primary); padding-left: 10px; margin: 25px 0 10px 0; }
+        section { background: #fff; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; margin-bottom: 15px; }
+        .issue-box { border-top: 5px solid #fab005; background: #fffdf5; }
+        .scroll-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #eee; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th, td { border: 1px solid #dee2e6; padding: 12px 8px; text-align: center; }
+        th { background: #f1f3f5; font-size: 0.85rem; color: #666; }
+        input[type="text"], input[type="number"], textarea, select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 1rem; }
+        .y-input { background: #fff9db !important; width: 80px !important; font-weight: bold; text-align: center; border: 2px solid #ffe066; }
+        .btn-calc { background: var(--primary); color: white; border: none; padding: 18px; width: 100%; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        .result-box { display: none; margin-top: 30px; }
+        .impact-card { background: #fff4e6; border: 2px solid var(--accent); padding: 18px; border-radius: 10px; margin-bottom: 15px; }
+        .best-card { background: #e8f5e9; border: 2px solid var(--success); padding: 18px; border-radius: 10px; }
+        .param-value { color: #d32f2f; font-weight: bold; }
+        .example-hint { font-size: 0.85rem; color: #666; margin-top: 10px; background: #f1f3f5; padding: 10px; border-radius: 4px; border-left: 3px solid #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>田口法 L9 試模優化診斷工具</h1>
+
+    <section class="issue-box">
+        <h2>📝 試模背景紀錄</h2>
+        <input type="text" id="mold_info" placeholder="產品名稱 / 模號" style="margin-bottom:10px;">
+        <textarea id="issue_desc" rows="2" placeholder="缺陷問題描述（例如：RIB 背面消水痕位置...）"></textarea>
+    </section>
+
+    <section>
+        <h2>🛠️ 1. 參數與水準設定 (請填寫實際數值)</h2>
+        <div style="margin-bottom:15px;">
+            優化目標：
+            <select id="targetType" onchange="sync()">
+                <option value="smaller">望小 (如：消水痕、翹曲) - 越小越好</option>
+                <option value="larger">望大 (如：強度、結合線) - 越大越好</option>
+                <option value="nominal">望目 (如：精密尺寸控制)</option>
+            </select>
+        </div>
+        <div class="scroll-wrapper">
+            <table>
+                <thead><tr><th>因子</th><th>名稱</th><th>L1</th><th>L2</th><th>L3</th></tr></thead>
+                <tbody>
+                    <tr><td>A</td><td><input type="text" id="f1_n" oninput="sync()"></td><td><input type="number" id="f1_l1" oninput="sync()"></td><td><input type="number" id="f1_l2" oninput="sync()"></td><td><input type="number" id="f1_l3" oninput="sync()"></td></tr>
+                    <tr><td>B</td><td><input type="text" id="f2_n" oninput="sync()"></td><td><input type="number" id="f2_l1" oninput="sync()"></td><td><input type="number" id="f2_l2" oninput="sync()"></td><td><input type="number" id="f2_l3" oninput="sync()"></td></tr>
+                    <tr><td>C</td><td><input type="text" id="f3_n" oninput="sync()"></td><td><input type="number" id="f3_l1" oninput="sync()"></td><td><input type="number" id="f3_l2" oninput="sync()"></td><td><input type="number" id="f3_l3" oninput="sync()"></td></tr>
+                    <tr><td>D</td><td><input type="text" id="f4_n" oninput="sync()"></td><td><input type="number" id="f4_l1" oninput="sync()"></td><td><input type="number" id="f4_l2" oninput="sync()"></td><td><input type="number" id="f4_l3" oninput="sync()"></td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="example-hint">
+            <strong>💡 消水痕範例：</strong> A:保壓壓力 (40, 60, 80) | B:保壓時間 (3, 5, 7) | C:模溫 (40, 50, 60)
+        </div>
+    </section>
+
+    <section>
+        <h2>📊 2. L9 試作紀錄 (數據自動連動)</h2>
+        <p style="font-size: 0.8rem; color: #888; margin-top: -5px;">⬅️ 手機請左右滑動查看完整表格 ➡️</p>
+        <div class="scroll-wrapper">
+            <table>
+                <thead>
+                    <tr><th>No.</th><th id="h_f1">A</th><th id="h_f2">B</th><th id="h_f3">C</th><th id="h_f4">D</th><th>Y1 (數據)</th><th>Y2</th><th>Y3</th></tr>
+                </thead>
+                <tbody id="l9Rows"></tbody>
+            </table>
+        </div>
+        <button class="btn-calc" onclick="calculate()">🚀 執行分析：找出關鍵影響參數</button>
+    </section>
+
+    <div id="resultsArea" class="result-box">
+        <div id="impactOut" class="impact-card"></div>
+        <div id="bestOut" class="best-card"></div>
+        <div class="scroll-wrapper" style="margin-top:20px; background:#fff;">
+            <table id="resTbl">
+                <thead><tr><th>因子</th><th>L1 平均</th><th>L2 平均</th><th>L3 平均</th><th>影響度</th><th>排序</th></tr></thead>
+                <tbody id="resRows"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const mat = [[0,0,0,0],[0,1,1,1],[0,2,2,2],[1,0,1,2],[1,1,2,0],[1,2,0,1],[2,0,2,1],[2,1,0,2],[2,2,1,0]];
+
+    function init() {
+        const body = document.getElementById('l9Rows');
+        body.innerHTML = '';
+        for(let i=0; i<9; i++) {
+            body.innerHTML += `<tr>
+                <td>${i+1}</td>
+                <td class="col-f1 param-value" data-lv="${mat[i][0]}"></td>
+                <td class="col-f2 param-value" data-lv="${mat[i][1]}"></td>
+                <td class="col-f3 param-value" data-lv="${mat[i][2]}"></td>
+                <td class="col-f4 param-value" data-lv="${mat[i][3]}"></td>
+                <td><input type="number" class="y-${i} y-input" step="0.001"></td>
+                <td><input type="number" class="y-${i} y-input" step="0.001"></td>
+                <td><input type="number" class="y-${i} y-input" step="0.001"></td>
+            </tr>`;
+        }
+        sync();
+    }
+
+    function sync() {
+        for(let i=1; i<=4; i++) {
+            const nameEl = document.getElementById('f'+i+'_n');
+            const name = nameEl.value || ('因子 '+String.fromCharCode(64+i));
+            document.getElementById('h_f'+i).innerText = name;
+            
+            const lvValues = [
+                document.getElementById('f'+i+'_l1').value,
+                document.getElementById('f'+i+'_l2').value,
+                document.getElementById('f'+i+'_l3').value
+            ];
+            
+            document.querySelectorAll('.col-f'+i).forEach(td => {
+                const lvIndex = parseInt(td.dataset.lv);
+                td.innerText = lvValues[lvIndex] || ('L'+(lvIndex+1));
+            });
+        }
+    }
+
+    function calculate() {
+        const type = document.getElementById('targetType').value;
+        let sn = [];
+        for(let i=0; i<9; i++) {
+            let ys = Array.from(document.querySelectorAll('.y-'+i)).map(el => parseFloat(el.value)).filter(v => !isNaN(v));
+            if(!ys.length) { alert('請填寫第 '+(i+1)+' 組的量測數據！'); return; }
+            let n = ys.length, avg = ys.reduce((a,b)=>a+b,0)/n, s = 0;
+            if(type === 'smaller') s = -10 * Math.log10(ys.reduce((a,b)=>a+b*b,0)/n);
+            else if(type === 'larger') s = -10 * Math.log10(ys.reduce((a,b)=>a+1/(b*b),0)/n);
+            else { 
+                let v = ys.reduce((a,b)=>a+Math.pow(b-avg,2),0)/(n-1||1);
+                s = v === 0 ? 50 : 10 * Math.log10(avg*avg/v);
+            }
+            sn.push(s);
+        }
+        let st = [];
+        for(let f=0; f<4; f++) {
+            let avs = [0,1,2].map(lv => {
+                let g = sn.filter((_,j) => mat[j][f] === lv);
+                return g.reduce((a,b)=>a+b,0)/3;
+            });
+            let d = Math.max(...avs) - Math.min(...avs);
+            st.push({ n: document.getElementById('h_f'+(f+1)).innerText, avs, d, b: avs.indexOf(Math.max(...avs)), id: f+1 });
+        }
+        const rnk = [...st].sort((a,b) => b.d - a.d);
+        const rb = document.getElementById('resRows'); rb.innerHTML='';
+        st.forEach(s => {
+            let r = rnk.indexOf(s) + 1;
+            rb.innerHTML += `<tr><td>${s.n}</td><td>${s.avs[0].toFixed(2)}</td><td>${s.avs[1].toFixed(2)}</td><td>${s.avs[2].toFixed(2)}</td><td>${s.d.toFixed(2)}</td><td style="${r===1?'color:red;font-weight:bold;':''}">第 ${r} 名</td></tr>`;
+        });
+        document.getElementById('impactOut').innerHTML = `💡 <b>診斷結論</b>：對此缺陷影響度最大的參數是「<span style="color:#e67e22;font-size:1.2rem;">${rnk[0].n}</span>」。`;
+        let bestH = "<h3>🏆 最佳參數組合建議</h3>";
+        st.forEach(s => {
+            let val = document.getElementById('f'+s.id+'_l'+(s.b+1)).value || ('L'+(s.b+1));
+            bestH += `• ${s.n}: <b>${val}</b> (水準 ${s.b+1})<br>`;
+        });
+        document.getElementById('bestOut').innerHTML = bestH;
+        document.getElementById('resultsArea').style.display = 'block';
+        window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+    }
+    window.onload = init;
+</script>
+</body>
+</html>
